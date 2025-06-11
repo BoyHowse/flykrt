@@ -1,0 +1,11 @@
+/Users/H/Documents/Proyectos/FLYKRT/Flykrt.Core/bin/Debug/net10.0/Flykrt.Core.deps.json
+/Users/H/Documents/Proyectos/FLYKRT/Flykrt.Core/bin/Debug/net10.0/Flykrt.Core.dll
+/Users/H/Documents/Proyectos/FLYKRT/Flykrt.Core/bin/Debug/net10.0/Flykrt.Core.pdb
+/Users/H/Documents/Proyectos/FLYKRT/Flykrt.Core/obj/Debug/net10.0/Flykrt.Core.GeneratedMSBuildEditorConfig.editorconfig
+/Users/H/Documents/Proyectos/FLYKRT/Flykrt.Core/obj/Debug/net10.0/Flykrt.Core.AssemblyInfoInputs.cache
+/Users/H/Documents/Proyectos/FLYKRT/Flykrt.Core/obj/Debug/net10.0/Flykrt.Core.AssemblyInfo.cs
+/Users/H/Documents/Proyectos/FLYKRT/Flykrt.Core/obj/Debug/net10.0/Flykrt.Core.csproj.CoreCompileInputs.cache
+/Users/H/Documents/Proyectos/FLYKRT/Flykrt.Core/obj/Debug/net10.0/Flykrt.Core.dll
+/Users/H/Documents/Proyectos/FLYKRT/Flykrt.Core/obj/Debug/net10.0/refint/Flykrt.Core.dll
+/Users/H/Documents/Proyectos/FLYKRT/Flykrt.Core/obj/Debug/net10.0/Flykrt.Core.pdb
+/Users/H/Documents/Proyectos/FLYKRT/Flykrt.Core/obj/Debug/net10.0/ref/Flykrt.Core.dll
