@@ -1,0 +1,47 @@
+body {
+  background-color: #0d0d0d;
+  color: #e0e0e0;
+  font-family: 'Inter', sans-serif;
+}
+
+input, textarea, select {
+  background-color: #1a1a1a;
+  color: #fff;
+  border: 1px solid #00BFFF;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+button {
+  background-color: #00BFFF;
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  cursor: pointer;
+  box-shadow: 0 0 8px #00BFFF;
+  transition: all 0.2s ease-in-out;
+}
+
+button:hover {
+  background-color: #0099cc;
+}
+
+a {
+  color: #39FF14;
+}
+
+.card {
+  background-color: #1a1a1a;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 0 10px rgba(0,255,255,0.1);
+}
+
+.section-title {
+  color: #00BFFF;
+  border-bottom: 2px solid #00BFFF;
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+}
