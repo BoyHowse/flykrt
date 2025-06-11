@@ -3,7 +3,6 @@ import { auth, provider, signInWithPopup, signOut } from './firebase';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import emailjs from 'emailjs-com';
-import './App.css';
 import Cart from './components/Cart';
 import OrderHistory from './components/OrderHistory';
 import ShippingForm from './components/ShippingForm';
@@ -365,59 +364,16 @@ function App() {
         <form
           className="add-product-form"
           onSubmit={handleSubmit}
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginTop: '40px',
-            padding: '0 20px',
-            boxSizing: 'border-box',
-            width: '100%',
-            maxWidth: '1000px',
-            marginLeft: 'auto',
-            marginRight: 'auto',
-            gap: '12px'
-          }}
         >
           <input
             type="text"
             value={link}
             onChange={(e) => setLink(e.target.value)}
             placeholder="Inserta el link de tu producto"
-            style={{
-              flexGrow: 1,
-              padding: '16px',
-              fontSize: '18px',
-              border: '2px solid #ccc',
-              borderRadius: '8px',
-              outline: 'none',
-              minWidth: '300px',
-              width: '100%',
-              maxWidth: '700px'
-            }}
           />
           <button
             type="submit"
-            style={{
-              padding: '16px 24px',
-              fontSize: '18px',
-              background: 'linear-gradient(90deg, #6a0dad, #8a2be2)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: '0 0 10px rgba(255, 0, 204, 0.4)',
-              marginTop: '4px'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.boxShadow = '0 0 20px rgba(138, 43, 226, 0.6)';
-              e.target.style.filter = 'brightness(1.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.boxShadow = '0 0 10px rgba(255, 0, 204, 0.4)';
-              e.target.style.filter = 'brightness(1)';
-            }}
+            className="btn-add-product"
           >
             Añadir producto
           </button>

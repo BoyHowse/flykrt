@@ -1,102 +1,38 @@
 import React from 'react';
+import './globalStyles.css';
 
 const Order = ({ shippingInfo, totalWeight, shippingCost, confirmOrder, generatePDF }) => {
   return (
-    <div
-      style={{
-        width: '100%',
-        maxWidth: '600px',
-        margin: '20px auto',
-        padding: '12px',
-        backgroundColor: '#fff',
-        border: '2px solid #000',
-        fontFamily: 'Arial, sans-serif'
-      }}
-    >
-      <h2
-        style={{
-          borderBottom: '2px solid #000',
-          paddingBottom: '6px',
-          fontSize: '16px',
-          fontWeight: 'bold'
-        }}
-      >
+    <div className="order-container">
+      <h2 className="order-title">
         💳 Método de pago
       </h2>
-      <p style={{ color: '#000' }}>Aún no está disponible el sistema de pagos.</p>
+      <p className="order-subtitle">Aún no está disponible el sistema de pagos.</p>
 
-      <div style={{ backgroundColor: '#dcdcdc', padding: '10px', border: '1px solid #000' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <p style={{ margin: 0, color: '#000' }}>**** **** **** 4242</p>
-          <p style={{ margin: 0, color: '#000' }}>VISA</p>
+      <div className="card-info">
+        <div className="card-info-header">
+          <p className="card-number">**** **** **** 4242</p>
+          <p className="card-type">VISA</p>
         </div>
-        <p style={{ margin: '10px 0 0 0', fontSize: '14px', color: '#000' }}>Titular: Juan Perez</p>
-        <p style={{ margin: '0', fontSize: '14px', color: '#000' }}>Exp: 12/26</p>
-        <p style={{ margin: '0', fontSize: '14px', color: '#000' }}>CVV: •••</p>
+        <p className="card-detail">Titular: Juan Perez</p>
+        <p className="card-detail">Exp: 12/26</p>
+        <p className="card-detail">CVV: •••</p>
       </div>
 
-      <div style={{ marginTop: '20px', textAlign: 'center' }}>
-        <button
-          disabled
-          style={{
-            margin: '4px',
-            padding: '6px 16px',
-            border: '2px solid black',
-            backgroundColor: '#ccc',
-            color: '#000',
-            fontWeight: 'bold',
-            fontSize: '14px',
-            cursor: 'not-allowed'
-          }}
-        >
+      <div className="payment-buttons">
+        <button disabled className="payment-button disabled">
           Pagar con Stripe (🔒 pronto)
         </button>
-        <button
-          disabled
-          style={{
-            margin: '4px',
-            padding: '6px 16px',
-            border: '2px solid black',
-            backgroundColor: '#ccc',
-            color: '#000',
-            fontWeight: 'bold',
-            fontSize: '14px',
-            cursor: 'not-allowed'
-          }}
-        >
+        <button disabled className="payment-button disabled">
           Pagar con MercadoPago (🔒 pronto)
         </button>
       </div>
 
-      <div style={{ marginTop: '40px', textAlign: 'center' }}>
-        <button
-          onClick={confirmOrder}
-          style={{
-            margin: '4px',
-            padding: '6px 16px',
-            border: '2px solid black',
-            backgroundColor: '#fff',
-            color: '#000',
-            fontWeight: 'bold',
-            fontSize: '14px',
-            cursor: 'pointer'
-          }}
-        >
+      <div className="action-buttons">
+        <button onClick={confirmOrder} className="action-button">
           Confirmar pedido (simulado)
         </button>
-        <button
-          onClick={generatePDF}
-          style={{
-            margin: '4px',
-            padding: '6px 16px',
-            border: '2px solid black',
-            backgroundColor: '#fff',
-            color: '#000',
-            fontWeight: 'bold',
-            fontSize: '14px',
-            cursor: 'pointer'
-          }}
-        >
+        <button onClick={generatePDF} className="action-button">
           Descargar resumen en PDF
         </button>
       </div>
