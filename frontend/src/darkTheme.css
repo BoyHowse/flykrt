@@ -1,47 +1,104 @@
 body {
-  background-color: #0d0d0d;
-  color: #e0e0e0;
   font-family: 'Inter', sans-serif;
-}
-
-input, textarea, select {
-  background-color: #1a1a1a;
-  color: #fff;
-  border: 1px solid #00BFFF;
-  border-radius: 6px;
-  padding: 10px;
-  margin-bottom: 10px;
-}
-
-button {
-  background-color: #00BFFF;
-  color: #000;
-  border: none;
-  border-radius: 6px;
-  padding: 10px 20px;
-  cursor: pointer;
-  box-shadow: 0 0 8px #00BFFF;
-  transition: all 0.2s ease-in-out;
-}
-
-button:hover {
-  background-color: #0099cc;
+  background-color: #f9fafb;
+  color: #111827;
 }
 
 a {
-  color: #39FF14;
+  color: #111827;
+  text-decoration: none;
+}
+
+button {
+  background-color: #111827;
+  color: white;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+button:hover {
+  background-color: #000000;
+}
+
+input,
+textarea,
+select {
+  border: 1px solid #d1d5db;
+  padding: 10px;
+  font-size: 14px;
+  border-radius: 6px;
+  background-color: white;
+  color: #111827;
 }
 
 .card {
-  background-color: #1a1a1a;
-  border-radius: 10px;
+  border: 1px solid #e5e7eb;
   padding: 20px;
-  box-shadow: 0 0 10px rgba(0,255,255,0.1);
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.app-title {
+  font-size: 32px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 30px;
+  color: #1f2937;
 }
 
 .section-title {
-  color: #00BFFF;
-  border-bottom: 2px solid #00BFFF;
-  padding-bottom: 6px;
-  margin-bottom: 10px;
+  font-size: 24px;
+  font-weight: 600;
+  border-bottom: 2px solid #d1d5db;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.login-container,
+.add-product-form {
+  text-align: center;
+  margin: 30px 0;
+}
+
+.product-link-input {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  display: block;
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+}
+
+.btn-google-login,
+.btn-add-product,
+.btn-clear-cart {
+  background-color: #111827;
+  color: white;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  margin: 5px;
+}
+
+.btn-google-login:hover,
+.btn-add-product:hover,
+.btn-clear-cart:hover {
+  background-color: #000000;
 }

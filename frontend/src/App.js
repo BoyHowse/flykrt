@@ -3,9 +3,50 @@ import { auth, provider, signInWithPopup, signOut } from './firebase';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import emailjs from 'emailjs-com';
-import './darkTheme.css';
+import './App.css';
+import Cart from './components/Cart';
+import OrderHistory from './components/OrderHistory';
+import ShippingForm from './components/ShippingForm';
+import UserProfile from './components/UserProfile';
+import Summary from './components/Summary';
+import Navbar from './layout/Navbar';
+import Footer from './layout/Footer';
 
 function App() {
+  const [currentText, setCurrentText] = useState('🚀 Bienvenido a FLYKRT');
+
+  useEffect(() => {
+    const messages = [
+      '🚀 Bienvenido a FLYKRT',
+      'Compra en Colombia, Recibe en Panamá',
+      'Volando, rápido, en tus manos'
+    ];
+
+    let index = 0;
+    let timeout;
+
+    const updateText = () => {
+      const message = messages[index];
+      let step = 0;
+      setCurrentText('');
+      const reveal = () => {
+        if (step <= message.length) {
+          setCurrentText(message.slice(0, step));
+          step++;
+          timeout = setTimeout(reveal, 50); // typing speed
+        } else {
+          timeout = setTimeout(() => {
+            index = (index + 1) % messages.length;
+            updateText();
+          }, index === 0 ? 5000 : 3000); // wait time per message
+        }
+      };
+      reveal();
+    };
+
+    updateText();
+    return () => clearTimeout(timeout);
+  }, []);
   const [link, setLink] = useState('');
   const [cart, setCart] = useState(() => {
     const storedCart = localStorage.getItem('flykrt_cart');
@@ -46,23 +87,136 @@ function App() {
     setUser(null);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (link.trim() !== '') {
-      const simulatedProduct = {
-        id: Date.now(),
-        name: 'Producto simulado – Zapatillas Urbanas',
-        price: 49.99,
-        image: 'https://via.placeholder.com/300x300?text=Producto',
-        description: 'Zapatillas casuales de cuero sintético. Producto simulado.',
-        sourceLink: link,
-        estimatedWeight: 1.2
-      };
-
-      setCart((prev) => [...prev, simulatedProduct]);
-      setLink('');
+  const [trm, setTrm] = useState(() => {
+    const saved = localStorage.getItem('flykrt_trm');
+    const savedTime = localStorage.getItem('flykrt_trm_time');
+    if (saved && savedTime && Date.now() - parseInt(savedTime) < 3600000) {
+      return parseFloat(saved);
     }
+    return null;
+  });
+
+  useEffect(() => {
+    if (trm === null) {
+      fetch('https://api.exchangerate.host/latest?base=COP&symbols=USD')
+        .then(res => res.json())
+        .then(data => {
+          const rate = 1 / data.rates.USD;
+          setTrm(rate);
+          localStorage.setItem('flykrt_trm', rate);
+          localStorage.setItem('flykrt_trm_time', Date.now().toString());
+        })
+        .catch(() => {
+          console.warn('No se pudo obtener la TRM actual. Se intentará de nuevo más tarde.');
+        });
+    }
+  }, [trm]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!link.trim()) return;
+
+    const blockedDomains = ['temu.com', 'amazon.com', 'amazon.es', 'amazon.co.uk', 'aliexpress.com'];
+    const urlHost = (() => {
+      try {
+        return new URL(link).hostname.replace('www.', '');
+      } catch {
+        return '';
+      }
+    })();
+
+    if (blockedDomains.some(domain => urlHost.includes(domain))) {
+      alert('No se permiten tiendas internacionales como Temu o Amazon. Solo se aceptan productos que se vendan desde Colombia.');
+      return;
+    }
+
+    if (!user && cart.length >= 3) {
+      alert('Máximo 3 productos sin iniciar sesión. Regístrate para continuar.');
+      return;
+    }
+
+    const extractNameFromLink = (url) => {
+      const path = new URL(url).pathname;
+      const parts = path.split('/');
+      const candidate = parts.find(p => p && !p.startsWith('http'));
+      return candidate ? candidate.replace(/[-_]/g, ' ') : 'Producto Colombiano';
+    };
+
+    const productName = extractNameFromLink(link);
+
+  // Llamado real al backend para obtener datos reales del producto
+  try {
+    const productData = await fetch('http://localhost:4000/api/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: link })
+    }).then(res => res.json());
+
+    // Extraer correctamente los valores
+    const { price, shipping, name, image, shortUrl } = productData;
+
+    // Validar precio: debe ser numérico y razonable
+    const validPrice = (!price || isNaN(price) || price > 1000000000) ? 999999 : price;
+
+    // Validar imagen: permitir .webp, .jpg, .jpeg, .png y excluir patrones inválidos
+    const isValidImage = (img) => {
+      if (!img || typeof img !== 'string') return false;
+
+      const invalidPatterns = [
+        'icon', 'favicon', 'logo', 'default', 'placeholder',
+        'whatsapp', 'generic', 'blur', 'sprite', 'header', 'profile'
+      ];
+
+      try {
+        const url = new URL(img);
+        const filename = url.pathname.split('/').pop().toLowerCase();
+
+        const validExtensions = ['.webp', '.jpg', '.jpeg', '.png'];
+
+        return (
+          validExtensions.some(ext => filename.endsWith(ext)) &&
+          !invalidPatterns.some(keyword => filename.includes(keyword))
+        );
+      } catch {
+        return false;
+      }
+    };
+
+    const validImage = isValidImage(image)
+      ? image
+      : await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(name || productName)}&client_id=3g6KJm6K9yZK9P6n5K4jzQ8dY7uG5tW9cF7aN2dK6gL4xF5lV2wR8zB4hQ5pX7aB`)
+          .then(res => res.json())
+          .then(data => {
+            const match = data.results?.find(photo =>
+              photo.alt_description?.toLowerCase().includes((name || productName).toLowerCase())
+            );
+            return match?.urls?.regular || data.results?.[0]?.urls?.regular || 'https://via.placeholder.com/600x600?text=Producto';
+          })
+          .catch(() => 'https://via.placeholder.com/600x600?text=Producto');
+
+    const simulatedProduct = {
+      id: Date.now(),
+      name: name || productName.charAt(0).toUpperCase() + productName.slice(1),
+      priceCOP: validPrice + (shipping || 0),
+      price: validPrice,
+      image: validImage,
+      description: `Producto: ${name || productName}. Precio: $${validPrice.toLocaleString('es-CO')} COP. Envío: $${(shipping || 0).toLocaleString('es-CO')} COP.`,
+      sourceLink: shortUrl || link,
+      estimatedWeight: (() => {
+        const keywords = link.toLowerCase();
+        if (keywords.includes('jean') || keywords.includes('pantalon')) return 0.7;
+        if (keywords.includes('camiseta') || keywords.includes('tshirt')) return 0.3;
+        if (keywords.includes('tenis') || keywords.includes('zapato')) return 1.0;
+        if (keywords.includes('chaqueta') || keywords.includes('jacket')) return 1.5;
+        return Math.random() * 1.2 + 0.3;
+      })()
+    };
+
+    setCart((prev) => [...prev, simulatedProduct]);
+    setLink('');
+  } catch (error) {
+    alert('Error al obtener la información del producto. Intenta de nuevo.');
+  }
   };
 
   const handleRemove = (id) => {
@@ -109,7 +263,7 @@ function App() {
     doc.autoTable({
       startY: 65,
       head: [['Producto', 'Precio', 'Peso', 'Link']],
-      body: cart.map(p => [p.name, `$${p.price}`, `${p.estimatedWeight} kg`, p.sourceLink])
+      body: cart.map(p => [p.name, `$${p.priceCOP}`, `${p.estimatedWeight} kg`, p.sourceLink])
     });
 
     doc.save('resumen_pedido_flykrt.pdf');
@@ -178,358 +332,160 @@ function App() {
   // --- HISTORIAL DE PEDIDOS ---
   const orderHistory = JSON.parse(localStorage.getItem('flykrt_order_history')) || [];
 
-  const renderOrderHistory = () => {
-    if (!orderHistory.length) return null;
-    return (
-      <div style={{ marginTop: '60px', maxWidth: '600px', margin: '0 auto' }}>
-        <h2 style={{ textAlign: 'center', color: '#2F80ED' }}>📖 Historial de Pedidos</h2>
-        {orderHistory.map((order, index) => (
-          <div key={index} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '10px', marginBottom: '20px', backgroundColor: '#fff' }}>
-            <p><strong>Pedido:</strong> {order.orderNumber}</p>
-            <p><strong>Fecha:</strong> {new Date(order.date).toLocaleString()}</p>
-            <p><strong>Cliente:</strong> {order.shippingInfo.fullName}</p>
-            <p><strong>Envío:</strong> {order.shippingInfo.address}, {order.shippingInfo.city}, {order.shippingInfo.country}</p>
-            <p><strong>Teléfono:</strong> {order.shippingInfo.phone}</p>
-            <p><strong>Total productos:</strong> {order.cart.length}</p>
-            <p><strong>Peso:</strong> {order.totalWeight.toFixed(2)} kg</p>
-            <p><strong>Costo de envío:</strong> ${order.shippingCost.toFixed(2)}</p>
-          </div>
-        ))}
-      </div>
-    );
-  };
 
   return (
-    <div style={{ padding: '40px', fontFamily: 'Inter, sans-serif', backgroundColor: '#f9fbfd', minHeight: '100vh' }}>
-      <h1 style={{ textAlign: 'center', color: '#2F80ED', fontWeight: '700' }}>🚀 Bienvenido a FLYKRT</h1>
+    <div className="app-container main-layout">
+      <Navbar />
+      <div className="hero-section">
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+          <span
+            style={{
+              fontSize: '3.5rem',
+              fontWeight: 'bold',
+              background: 'linear-gradient(90deg, #ff00cc, #3333ff, #00ffcc)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              whiteSpace: 'nowrap',
+              transition: 'opacity 0.5s ease'
+            }}
+            id="flykrt-heading"
+          >
+            {currentText}
+          </span>
+        </div>
 
-      {!user ? (
-        <div style={{ textAlign: 'center', marginTop: '20px' }}>
+        {!addressSaved && user && (
+          <ShippingForm
+            shippingInfo={shippingInfo}
+            setShippingInfo={setShippingInfo}
+            setAddressSaved={setAddressSaved}
+          />
+        )}
+
+        <form
+          className="add-product-form"
+          onSubmit={handleSubmit}
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginTop: '40px',
+            padding: '0 20px',
+            boxSizing: 'border-box',
+            width: '100%',
+            maxWidth: '1000px',
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            gap: '12px'
+          }}
+        >
+          <input
+            type="text"
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            placeholder="Inserta el link de tu producto"
+            style={{
+              flexGrow: 1,
+              padding: '16px',
+              fontSize: '18px',
+              border: '2px solid #ccc',
+              borderRadius: '8px',
+              outline: 'none',
+              minWidth: '300px',
+              width: '100%',
+              maxWidth: '700px'
+            }}
+          />
           <button
+            type="submit"
+            style={{
+              padding: '16px 24px',
+              fontSize: '18px',
+              background: 'linear-gradient(90deg, #6a0dad, #8a2be2)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 0 10px rgba(255, 0, 204, 0.4)',
+              marginTop: '4px'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.boxShadow = '0 0 20px rgba(138, 43, 226, 0.6)';
+              e.target.style.filter = 'brightness(1.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.boxShadow = '0 0 10px rgba(255, 0, 204, 0.4)';
+              e.target.style.filter = 'brightness(1)';
+            }}
+          >
+            Añadir producto
+          </button>
+        </form>
+      </div>
+
+      {/* Google login button moved before cart */}
+
+      {!user && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: '60px', marginTop: '40px', marginBottom: '40px' }}>
+          <button
+            className="btn-google-login"
             onClick={handleGoogleLogin}
             style={{
-              padding: '10px 20px',
+              padding: '12px 24px',
               fontSize: '16px',
-              backgroundColor: '#2F80ED',
-              color: 'white',
+              backgroundColor: '#4285F4',
+              color: '#fff',
               border: 'none',
-              borderRadius: '6px',
+              borderRadius: '4px',
               cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-              transition: 'all 0.2s ease-in-out',
+              transition: 'background-color 0.3s ease'
             }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1366d6'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2F80ED'}
+            onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)' }}
+            onMouseLeave={(e) => { e.target.style.transform = 'scale(1)' }}
           >
-            Iniciar sesión con Google
+            Inicia sesión para que no pierdas tu carrito
           </button>
         </div>
-      ) : (
+      )}
+
+      {cart.length > 0 && (
         <>
-          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-              <img src={user.photo} alt="user" style={{ width: '40px', borderRadius: '50%' }} />
-              <div>
-                <p style={{ margin: 0, color: '#111' }}>👤 <strong>{user.name}</strong></p>
-                {/* Dirección resumida editable */}
-                <p style={{ margin: 0, fontSize: '13px', color: '#888' }}>
-                  Enviar a: {shippingInfo.address ? shippingInfo.address.split(' ')[0] + '...' : ''}
-                  <button onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setAddressSaved(false); }} style={{
-                    background: 'none', border: 'none', color: '#2F80ED', cursor: 'pointer', fontSize: '13px', marginLeft: '6px'
-                  }}>
-                    ✏️
-                  </button>
-                </p>
-                <p style={{ margin: 0, fontSize: '14px', color: '#888' }}>{user.email}</p>
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              style={{
-                padding: '6px 16px',
-                fontSize: '14px',
-                backgroundColor: '#BDBDBD',
-                color: '#333',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                transition: 'all 0.2s ease-in-out',
-                marginTop: '10px'
-              }}
-              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#a3a3a3'}
-              onMouseLeave={e => e.currentTarget.style.backgroundColor = '#BDBDBD'}
-            >
-              Cerrar sesión
-            </button>
-          </div>
-
-          {!addressSaved && (
-            <div style={{ maxWidth: '500px', margin: '0 auto', marginBottom: '30px' }}>
-              <h2 style={{ color: '#333', borderBottom: '2px solid #2F80ED', paddingBottom: '6px' }}>📦 Dirección de envío</h2>
-              <input
-                type="text"
-                placeholder="Nombre completo"
-                value={shippingInfo.fullName}
-                onChange={(e) => setShippingInfo({ ...shippingInfo, fullName: e.target.value })}
-                style={{ width: '100%', marginBottom: '10px', padding: '10px', fontSize: '16px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#fff' }}
-              />
-              <input
-                type="text"
-                placeholder="Dirección"
-                value={shippingInfo.address}
-                onChange={(e) => setShippingInfo({ ...shippingInfo, address: e.target.value })}
-                style={{ width: '100%', marginBottom: '10px', padding: '10px', fontSize: '16px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#fff' }}
-              />
-              <input
-                type="text"
-                placeholder="Ciudad"
-                value={shippingInfo.city}
-                onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
-                style={{ width: '100%', marginBottom: '10px', padding: '10px', fontSize: '16px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#fff' }}
-              />
-              <input
-                type="text"
-                placeholder="País"
-                value={shippingInfo.country}
-                onChange={(e) => setShippingInfo({ ...shippingInfo, country: e.target.value })}
-                style={{ width: '100%', marginBottom: '10px', padding: '10px', fontSize: '16px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#fff' }}
-              />
-              <input
-                type="text"
-                placeholder="Teléfono"
-                value={shippingInfo.phone}
-                onChange={(e) => setShippingInfo({ ...shippingInfo, phone: e.target.value })}
-                style={{ width: '100%', marginBottom: '10px', padding: '10px', fontSize: '16px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#fff' }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  localStorage.setItem('flykrt_shipping', JSON.stringify(shippingInfo));
-                  setAddressSaved(true);
-                  alert('✅ Dirección guardada exitosamente');
-                }}
-                style={{
-                  marginTop: '10px',
-                  width: '100%',
-                  padding: '10px',
-                  fontSize: '16px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  backgroundColor: '#27AE60',
-                  color: 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Guardar dirección
-              </button>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} style={{ textAlign: 'center' }}>
-            <input
-              type="text"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              placeholder="https://instagram.com/..."
-              style={{
-                width: '80%',
-                padding: '12px 20px',
-                fontSize: '18px',
-                borderRadius: '8px',
-                border: '1px solid #ccc',
-                marginTop: '20px',
-                backgroundColor: '#fff',
-                boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)',
-              }}
-            />
-            <br />
-            <button
-              type="submit"
-              style={{
-                marginTop: '15px',
-                padding: '10px 24px',
-                fontSize: '16px',
-                borderRadius: '6px',
-                border: 'none',
-                backgroundColor: '#2F80ED',
-                color: 'white',
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                transition: 'all 0.2s ease-in-out',
-              }}
-              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1366d6'}
-              onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2F80ED'}
-            >
-              Añadir producto
-            </button>
-            {cart.length > 0 && (
-              <button
-                onClick={() => setCart([])}
-                style={{
-                  marginTop: '15px',
-                  marginLeft: '10px',
-                  padding: '10px 24px',
-                  fontSize: '16px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: '#828282',
-                  color: 'white',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                  transition: 'all 0.2s ease-in-out',
-                }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#6b6b6b'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#828282'}
-              >
-                Vaciar carrito
-              </button>
-            )}
-          </form>
-
-          {cart.length > 0 && (
-            <div style={{ marginTop: '40px' }}>
-              <h2 style={{ color: '#333', borderBottom: '2px solid #2F80ED', paddingBottom: '6px' }}>🛒 Tu carrito (con alas)</h2>
-              <p>Total de productos: <strong style={{ color: '#111' }}>{cart.length}</strong></p>
-              <p>Peso estimado: <strong style={{ color: '#111' }}>{totalWeight.toFixed(2)} kg</strong></p>
-              <p><strong style={{ color: '#111' }}>Envío FLYKRT:</strong> <strong style={{ color: '#111' }}>${shippingCost.toFixed(2)}</strong></p>
-
-              {cart.map((product) => (
-                <div key={product.id} style={{
-                  marginTop: '30px',
-                  maxWidth: '500px',
-                  margin: '0 auto',
-                  backgroundColor: '#ffffff',
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 10px rgba(0,0,0,0.05)',
-                  padding: '20px',
-                  position: 'relative'
-                }}>
-                  <img src={product.image} alt="Producto" style={{ width: '100%', borderRadius: '10px' }} />
-                  <h3 style={{ color: '#111' }}>{product.name}</h3>
-                  <p><strong style={{ color: '#111' }}>Precio:</strong> <strong style={{ color: '#111' }}>${product.price}</strong></p>
-                  <p style={{ color: '#333' }}>{product.description}</p>
-                  <p><small>Link original: <a href={product.sourceLink} target="_blank" rel="noreferrer">{product.sourceLink}</a></small></p>
-                  <button
-                    onClick={() => handleRemove(product.id)}
-                    style={{
-                      position: 'absolute',
-                      top: '10px',
-                      right: '10px',
-                      background: '#ff4d4f',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '30px',
-                      height: '30px',
-                      color: 'white',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                      transition: 'all 0.2s ease-in-out',
-                    }}
-                    title="Eliminar producto"
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#d9363e'}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ff4d4f'}
-                  >
-                    🗑
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {addressSaved && (
-            <div style={{ marginTop: '40px', maxWidth: '500px', margin: '0 auto' }}>
-              <h2 style={{ color: '#333', borderBottom: '2px solid #2F80ED', paddingBottom: '6px' }}>📍 Resumen de envío</h2>
-              <p><strong style={{ color: '#111' }}>Nombre:</strong> <strong style={{ color: '#111' }}>{shippingInfo.fullName}</strong></p>
-              <p><strong style={{ color: '#111' }}>Dirección:</strong> <strong style={{ color: '#111' }}>{shippingInfo.address}, {shippingInfo.city}, {shippingInfo.country}</strong></p>
-              <p><strong style={{ color: '#111' }}>Teléfono:</strong> <strong style={{ color: '#111' }}>{shippingInfo.phone}</strong></p>
-              <p style={{ fontSize: '14px', marginTop: '10px' }}>
-                <button
-                  onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setAddressSaved(false); }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    color: '#2F80ED',
-                    textDecoration: 'underline',
-                    cursor: 'pointer',
-                    fontSize: 'inherit'
-                  }}
-                >
-                  ✏️ Editar dirección
-                </button>
-              </p>
-            </div>
-          )}
-
-          <div style={{ marginTop: '40px', maxWidth: '500px', margin: '0 auto', padding: '20px', border: '2px dashed #ccc', borderRadius: '12px' }}>
-            <h2 style={{ color: '#333', borderBottom: '2px solid #2F80ED', paddingBottom: '6px' }}>💳 Método de pago</h2>
-            <p style={{ color: '#888' }}>Aún no está disponible el sistema de pagos.</p>
-
-            <div style={{ backgroundColor: '#f2f2f2', borderRadius: '10px', padding: '20px', marginTop: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <p style={{ margin: 0, color: '#555' }}>**** **** **** 4242</p>
-                <p style={{ margin: 0, color: '#555' }}>VISA</p>
-              </div>
-              <p style={{ margin: '10px 0 0 0', fontSize: '14px', color: '#999' }}>Titular: Juan Perez</p>
-              <p style={{ margin: '0', fontSize: '14px', color: '#999' }}>Exp: 12/26</p>
-              <p style={{ margin: '0', fontSize: '14px', color: '#999' }}>CVV: •••</p>
-            </div>
-
-            <div style={{ marginTop: '20px', textAlign: 'center' }}>
-              <button disabled style={{ margin: '5px', padding: '10px 20px', borderRadius: '8px', border: 'none', backgroundColor: '#ccc', color: '#666' }}>
-                Pagar con Stripe (🔒 pronto)
-              </button>
-              <button disabled style={{ margin: '5px', padding: '10px 20px', borderRadius: '8px', border: 'none', backgroundColor: '#ccc', color: '#666' }}>
-                Pagar con MercadoPago (🔒 pronto)
-              </button>
-            </div>
-          </div>
-
-          {cart.length > 0 && addressSaved && (
-            <div style={{ marginTop: '40px', textAlign: 'center' }}>
-              <button
-                onClick={confirmOrder}
-                style={{
-                  padding: '14px 32px',
-                  fontSize: '18px',
-                  backgroundColor: '#27AE60',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                  transition: 'all 0.2s ease-in-out',
-                }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1f8c4a'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#27AE60'}
-              >
-                Confirmar pedido (simulado)
-              </button>
-              <button
-                onClick={generatePDF}
-                style={{
-                  marginTop: '20px',
-                  padding: '12px 28px',
-                  fontSize: '16px',
-                  backgroundColor: '#F2994A',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                  transition: 'all 0.2s ease-in-out',
-                }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#d87d2f'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#F2994A'}
-              >
-                Descargar resumen en PDF
-              </button>
-            </div>
-          )}
+          <Cart
+            cart={cart}
+            setCart={setCart}
+            totalWeight={totalWeight}
+            shippingCost={shippingCost}
+            handleRemove={handleRemove}
+            handleGoogleLogin={handleGoogleLogin}
+            trm={trm}
+          />
         </>
       )}
-      {renderOrderHistory()}
+
+      {user && (
+        <>
+          <UserProfile
+            user={user}
+            shippingInfo={shippingInfo}
+            handleLogout={handleLogout}
+            setAddressSaved={setAddressSaved}
+          />
+          <Summary
+            addressSaved={addressSaved}
+            shippingInfo={shippingInfo}
+            setAddressSaved={setAddressSaved}
+            cart={cart}
+            confirmOrder={confirmOrder}
+            generatePDF={generatePDF}
+            shippingCost={shippingCost}
+            totalWeight={totalWeight}
+          />
+        </>
+      )}
+
+      {orderHistory.length > 0 && <OrderHistory orderHistory={orderHistory} />}
+      <Footer />
     </div>
   );
 }
